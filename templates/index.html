@@ -240,6 +240,7 @@
         }).observe(domElement);
 
         let currentInterval = 'ONE_MINUTE';
+        let renderedLogCount = 0;
         
         function setTimeframe(interval, btn) {
             currentInterval = interval;
@@ -349,19 +350,62 @@
                     document.getElementById('trades-executed').innerText = data.currentTrades;
                     document.getElementById('trades-max').innerText = data.maxTrades;
                     
-                    // Update inputs if not focused
-                    if(document.activeElement.id !== 'symbol') document.getElementById('symbol').value = data.symbol;
-                    if(document.activeElement.id !== 'maxTrades') document.getElementById('maxTrades').value = data.maxTrades;
+                    // Keep form fields synced with backend without touching focused input
+                    const activeId = document.activeElement ? document.activeElement.id : '';
+                    if (activeId !== 'maxTrades') {
+                        document.getElementById('maxTrades').value = data.maxTrades;
+                    }
+
+                    const category = document.querySelector('input[name="category"]:checked').value;
+                    if (category === 'INDICES' && activeId !== 'symbol-index') {
+                        const indexSelect = document.getElementById('symbol-index');
+                        if ([...indexSelect.options].some(option => option.value === data.symbol)) {
+                            indexSelect.value = data.symbol;
+                        }
+                    }
+
+                    if (category === 'STOCKS' && activeId !== 'symbol-stock') {
+                        document.getElementById('symbol-stock').value = data.symbol;
+                    }
+
+                    if (category === 'OPTIONS' && activeId !== 'symbol-option') {
+                        const optionSelect = document.getElementById('symbol-option');
+                        if ([...optionSelect.options].some(option => option.value === data.symbol)) {
+                            optionSelect.value = data.symbol;
+                        }
+                    }
 
                     // Update logs
                     const logContainer = document.getElementById('log-container');
-                    logContainer.innerHTML = '';
-                    data.logs.forEach(log => {
+                    if (!Array.isArray(data.logs)) {
+                        data.logs = [];
+                    }
+
+                    // If app restarted or logs rotated, rebuild full list
+                    if (data.logs.length < renderedLogCount) {
+                        renderedLogCount = 0;
+                        logContainer.innerHTML = '';
+                    }
+
+                    data.logs.slice(renderedLogCount).forEach(log => {
                         const div = document.createElement('div');
-                        div.className = log.includes('Error') ? 'text-red-400' : (log.includes('BUY') || log.includes('SELL')) ? 'text-emerald-400' : 'text-slate-300';
+                        if (log.includes('Error')) {
+                            div.className = 'text-red-500 font-semibold';
+                        } else if (log.includes('BUY')) {
+                            div.className = 'text-emerald-400 font-semibold';
+                        } else if (log.includes('SELL')) {
+                            div.className = 'text-red-400 font-semibold';
+                        } else if (log.includes('Bullish')) {
+                            div.className = 'text-emerald-300';
+                        } else if (log.includes('Bearish')) {
+                            div.className = 'text-red-300';
+                        } else {
+                            div.className = 'text-slate-300';
+                        }
                         div.innerText = log;
                         logContainer.appendChild(div);
                     });
+                    renderedLogCount = data.logs.length;
                     logContainer.scrollTop = logContainer.scrollHeight;
 
                     // Update Chart Data
@@ -394,6 +438,9 @@
                             candleSeries.setMarkers(markers);
                         }
                     }
+                })
+                .catch(err => {
+                    console.error('Status polling error:', err);
                 });
         }, 2000);
     </script>

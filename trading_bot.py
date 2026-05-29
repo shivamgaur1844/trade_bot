@@ -46,6 +46,7 @@ class TradingBot:
         self.moneyness = "ATM"
         self.options_data = [] # Stores NFO contracts
         self.active_option = None # dict holding active option trade
+        self.max_log_entries = 5000
 
     def fetch_scrip_master(self):
         self.log("Downloading Scrip Master DB... This will take a few seconds.")
@@ -69,7 +70,7 @@ class TradingBot:
         msg = f"[{time.strftime('%H:%M:%S')}] {message}"
         print(msg)
         self.logs.append(msg)
-        if len(self.logs) > 50:
+        if len(self.logs) > self.max_log_entries:
             self.logs.pop(0)
 
     def login(self):
@@ -500,6 +501,8 @@ class TradingBot:
                 
                 # 2. Analyze Market
                 signal = self.analyze_market(self.last_price)
+                if signal.startswith("BUY") or signal.startswith("SELL"):
+                    self.log(f"Trade Signal Generated: {signal} at ₹{self.last_price}")
                 
                 # 3. Check Risk Management (Take Profit / Stop Loss)
                 self.check_risk_management()
@@ -507,6 +510,8 @@ class TradingBot:
                 # 4. Execute Trade
                 if signal.startswith('BUY') and self.position == 0:
                     self.execute_trade(signal)
+                elif signal.startswith('BUY') and self.position != 0:
+                    self.log("Buy signal ignored because a position is already open.")
                     
             except Exception as e:
                 self.log(f"Error in trading loop: {str(e)}")
@@ -544,7 +549,7 @@ class TradingBot:
             "lastPrice": self.last_price,
             "currentTrades": self.current_trades,
             "maxTrades": self.max_trades,
-            "logs": self.logs[-10:], # Return last 10 logs
+            "logs": self.logs,
             "candles": candle_list,
             "tradeHistory": self.trade_history
         }
