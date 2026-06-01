@@ -21,6 +21,7 @@ class TradingBot:
         self.take_profit_target = 0.0
         self.stop_loss_target = 0.0
         self.max_trades = 5
+        self.investment_amount = 10000.0
         
         # State
         self.current_trades = 0
